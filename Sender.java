@@ -18,7 +18,9 @@ public class Sender extends Thread{
         System.out.println(sock.getLocalPort());
 
         try{
-            InetAddress address = InetAddress.getByName("localhost");
+            //InetAddress address = InetAddress.getByName("localhost");
+            InetAddress address = InetAddress.getLocalHost();
+            System.out.println(address.toString());
             byte[] info = readFile(file);
             buffer = info;
             DatagramPacket packet = new DatagramPacket(buffer, buffer.length, address, port);

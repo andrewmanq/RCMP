@@ -17,9 +17,26 @@ public class Receiver extends Thread{
         
         portNum = port;
         fileName = name;
+        
         try{
             sock = new DatagramSocket(portNum);
-            run();
+
+            listening = true;
+            while (listening) {
+                try{
+                    DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
+                    sock.receive(packet);
+    
+                    String received = new String(packet.getData(), 0, packet.getLength());
+                    System.out.println("got something");
+    
+                }catch(Exception e){
+                    System.out.println(e.toString());
+                }
+    
+            }
+            sock.close();
+
         }catch(Exception e){
             System.out.println(e.toString());
         }
@@ -30,24 +47,5 @@ public class Receiver extends Thread{
         fileName = args[1];
 
         Receiver r = new Receiver(portNum, fileName);
-    }
- 
-    public void run() {
-        listening = true;
- 
-        while (listening) {
-            try{
-                DatagramPacket packet = new DatagramPacket(buffer, buffer.length);
-                sock.receive(packet);
-
-                String received = new String(packet.getData(), 0, packet.getLength());
-                System.out.println("got something");
-
-            }catch(Exception e){
-                System.out.println(e.toString());
-            }
-
-        }
-        sock.close();
     }
 }
