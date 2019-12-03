@@ -38,7 +38,7 @@ public class Sender extends Thread{
 
     static byte[][] biteOff(byte[] input, int size){
         int originalLength = input.length;
-        int divisions = originalLength / size;
+        int divisions = (int)(Math.ceil((double)originalLength / (double)size));
         byte[][] answer = new byte[divisions][];
 
         for(int i = 0; i < divisions; i++){
