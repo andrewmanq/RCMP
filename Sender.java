@@ -7,12 +7,17 @@ import java.nio.ByteBuffer;
 
 public class Sender extends Thread{
 
+    public static final String ANSI_GREEN = "\u001B[32m";
+    public static final String ANSI_RESET = "\u001B[0m";
+
     private static byte[] id;
     private static byte[] msgSz;
     public static void main(String args[]) throws Exception
     {   
         id = getRandomID();
-        
+        int gapCount = 0;
+        int nextExpectedAck = 0;
+
         DatagramSocket clientSocket = new DatagramSocket();
         InetAddress IPAddress = InetAddress.getByName("localhost");
         byte[] rawData = readFile(args[2]);
@@ -22,14 +27,30 @@ public class Sender extends Thread{
 
         System.out.println("frames required: " + allData.length);
         for(int i = 0; i < allData.length; i++){
+
+            if(nextExpectedAck == i){
+                insertAckRequest(allData[i]);
+            }
+
             DatagramPacket sendPacket = new DatagramPacket(allData[i], allData[i].length, IPAddress, Integer.parseInt(args[1]));
             clientSocket.send(sendPacket);
             //System.out.print(i);
 
-            byte[] receiveData = new byte["ACK".getBytes().length];
-            DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
-            clientSocket.receive(receivePacket);
-            System.out.print("_ACK_");
+            if(nextExpectedAck == i){
+                byte[] receiveData = new byte[8];
+                while(parseACKvalid(receiveData) == false){
+                    DatagramPacket receivePacket = new DatagramPacket(receiveData, receiveData.length);
+                    clientSocket.receive(receivePacket);
+                }
+                int ackNum = parseACKnumber(receiveData);
+
+                System.out.println(ANSI_GREEN + "ack " + ackNum + " recieved" + ANSI_RESET);
+
+                gapCount ++;
+                nextExpectedAck += gapCount;
+            }
+
+            System.out.print(i + ".");
         }
         
         
@@ -37,6 +58,26 @@ public class Sender extends Thread{
     //    String modifiedSentence = new String(receivePacket.getData());
     //    System.out.println("FROM SERVER:" + modifiedSentence);
         clientSocket.close();
+    }
+
+    static Boolean parseACKvalid(byte[] information){
+        Boolean answer = true;
+        if(information[0] != id[0]){ answer = false; }
+        if(information[1] != id[1]){ answer = false; }
+        if(information[2] != id[2]){ answer = false; }
+        if(information[3] != id[3]){ answer = false; }
+        return answer;
+    }
+    
+    static int parseACKnumber(byte[] information){
+        int answer = 0;
+
+        byte[] numData = new byte[4];
+        numData[0] = information[4]; numData[1] = information[5];
+        numData[2] = information[6]; numData[3] = information[7];
+        answer = Integer.parseInt(new String(numData));
+
+        return answer;
     }
 
     static byte[] readFile(String name) throws Exception{
@@ -62,7 +103,7 @@ public class Sender extends Thread{
             }
             int arraySize = endIndex - startIndex;
 
-            answer[i] = new byte[arraySize + 12];
+            answer[i] = new byte[arraySize + 13];
 
             for(int j = 0; j < 4; j++){
                 answer[i][j] = id[j];
@@ -73,17 +114,24 @@ public class Sender extends Thread{
             }
 
             byte[] packetNum = get4ByteInt(i);
-            
+
             for(int j = 0; j < 4; j++){
                 answer[i][j + 8] = packetNum[j];
             }
 
+            answer[i][12] = 0;
+
             for(int j = 0; j < arraySize; j++){
-                answer[i][j + 12] = input[i * biteSize + j];
+                answer[i][j + 13] = input[i * biteSize + j];
             }
         }
 
         return answer;
+    }
+
+    private static byte[] insertAckRequest(byte[] data){
+        data[12] = 1;
+        return data;
     }
 
     //Returns a random 4-bit id number
